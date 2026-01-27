@@ -2,140 +2,252 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Sistema</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Survivor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  background:black;
-  color:#00ff00;
-  font-family: monospace;
-  overflow:hidden;
+body {
+  margin: 0;
+  background: radial-gradient(circle, #050510, #000);
+  color: #0ff;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  touch-action: none;
 }
 
-/* TEXTO */
-#terminal{
-  padding:10px;
-  font-size:12px;
-  line-height:1.3;
-  white-space:pre-wrap;
+h2 { margin: 5px; }
+
+canvas {
+  background: #050510;
+  display: block;
+  margin: auto;
+  border: 2px solid #0ff;
+  box-shadow: 0 0 20px #0ff;
 }
 
-/* INT6 */
-.int6{
-  animation: flashInt6 0.04s infinite;
-}
-@keyframes flashInt6{
-  0%{background:#000;color:#0f0}
-  20%{background:#fff;color:#000}
-  40%{background:#f00;color:#fff}
-  60%{background:#000;color:#0ff}
-  80%{background:#fff;color:#f00}
-  100%{background:#000;color:#0f0}
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 10px;
 }
 
-.shake{
-  animation: shake 0.07s infinite;
+.btn {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  background: #111;
+  border: 2px solid #0ff;
+  color: #0ff;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-@keyframes shake{
-  0%{transform:translate(0,0)}
-  25%{transform:translate(-4px,3px)}
-  50%{transform:translate(4px,-3px)}
-  75%{transform:translate(-3px,-4px)}
-  100%{transform:translate(0,0)}
+
+.btn:active {
+  background: #0ff;
+  color: black;
+}
+
+.info {
+  font-size: 14px;
 }
 </style>
 </head>
 
 <body>
-<div id="terminal"></div>
+
+<h2>⚡ NEON SURVIVOR ⚡</h2>
+
+<canvas id="game" width="360" height="500"></canvas>
+
+<div class="controls">
+  <div class="btn" id="left">⬅️</div>
+  <div class="btn" id="up">⬆️</div>
+  <div class="btn" id="right">➡️</div>
+  <div class="btn" id="shoot">🎯</div>
+</div>
+
+<p class="info">
+Pontuação: <span id="score">0</span> |
+Recorde: <span id="record">0</span>
+</p>
 
 <script>
-const t = document.getElementById("terminal");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-/* DADOS FAKE */
-const logs = [
-"Inicializando protocolo...",
-"Conectando nó 192.168.0." + Math.floor(Math.random()*255),
-"Buscando CPF...",
-"Buscando CEP...",
-"Buscando IP...",
-"Buscando número de telefone...",
-"Buscando e-mail...",
-"Buscando Caixa Tem...",
-"Extraindo senhas...",
-"Malhada de Pedras - BA",
-"+55 77 8810-1527",
-"Guilherme Monteiro dos Santos",
-"Eusana Monteiro",
-"Naturalidade: Malhada de Pedras - Bahia",
-"Escolaridade: Ensino médio",
-"IP: 177.54." + Math.floor(Math.random()*255) + "." + Math.floor(Math.random()*255),
-"Porta aberta: 443",
-"Handshake TLS interceptado",
-"Dump criptográfico:",
-"0xA3F9C1E77B91",
-"0xFF12AA90BC44",
-"0xC9E7710A991E",
-"Sincronizando..."
-];
+let score = 0;
+let record = localStorage.getItem("record") || 0;
+document.getElementById("record").innerText = record;
 
-/* LOG RÁPIDO */
-let i=0;
-const logInterval = setInterval(()=>{
-  for(let k=0;k<3;k++){
-    if(i<logs.length){
-      t.textContent += logs[i] + "\n";
-      i++;
-      window.scrollTo(0,document.body.scrollHeight);
+let gameOver = false;
+let gravity = 0.8;
+let difficulty = 1;
+
+const player = {
+  x: 170,
+  y: 440,
+  size: 20,
+  speed: 5,
+  vy: 0,
+  onGround: true
+};
+
+const enemies = [];
+const bullets = [];
+const powerUps = [];
+
+let left = false, right = false, up = false, shooting = false;
+
+// BOTÕES
+const bind = (id, press, release) => {
+  const b = document.getElementById(id);
+  b.addEventListener("touchstart", e => { e.preventDefault(); press(); });
+  b.addEventListener("touchend", e => { e.preventDefault(); release(); });
+};
+
+bind("left", () => left = true, () => left = false);
+bind("right", () => right = true, () => right = false);
+bind("up", () => up = true, () => up = false);
+bind("shoot", () => shooting = true, () => shooting = false);
+
+function spawnEnemy() {
+  enemies.push({
+    x: Math.random() * (canvas.width - 20),
+    y: -20,
+    size: 20,
+    speed: 2 + difficulty
+  });
+}
+
+function spawnPowerUp() {
+  powerUps.push({
+    x: Math.random() * (canvas.width - 15),
+    y: -15,
+    size: 15
+  });
+}
+
+function shoot() {
+  bullets.push({
+    x: player.x + player.size / 2 - 3,
+    y: player.y,
+    speed: 7
+  });
+}
+
+function update() {
+  if (gameOver) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Movimento horizontal
+  if (left && player.x > 0) player.x -= player.speed;
+  if (right && player.x < canvas.width - player.size) player.x += player.speed;
+
+  // Pulo
+  if (up && player.onGround) {
+    player.vy = -12;
+    player.onGround = false;
+  }
+
+  player.vy += gravity;
+  player.y += player.vy;
+
+  if (player.y >= 440) {
+    player.y = 440;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  // Tiro
+  if (shooting && Math.random() < 0.2) shoot();
+
+  // Jogador
+  ctx.fillStyle = "#0ff";
+  ctx.fillRect(player.x, player.y, player.size, player.size);
+
+  // Balas
+  ctx.fillStyle = "#fff";
+  bullets.forEach((b, i) => {
+    b.y -= b.speed;
+    ctx.fillRect(b.x, b.y, 6, 10);
+    if (b.y < 0) bullets.splice(i, 1);
+  });
+
+  // Inimigos
+  ctx.fillStyle = "red";
+  enemies.forEach((e, i) => {
+    e.y += e.speed;
+    ctx.fillRect(e.x, e.y, e.size, e.size);
+
+    // Colisão jogador
+    if (
+      e.x < player.x + player.size &&
+      e.x + e.size > player.x &&
+      e.y < player.y + player.size &&
+      e.y + e.size > player.y
+    ) {
+      navigator.vibrate?.(300);
+      gameOver = true;
+      if (score > record) {
+        localStorage.setItem("record", score);
+      }
+      alert("💀 GAME OVER\nPontuação: " + score);
+      location.reload();
     }
-  }
-}, 60);
 
-/* SOM DE CHIADO */
-let audioCtx, noise;
-function startNoise(){
-  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for(let i=0;i<data.length;i++){
-    data[i] = Math.random()*2-1;
-  }
-  noise = audioCtx.createBufferSource();
-  noise.buffer = buffer;
-  noise.loop = true;
-  noise.connect(audioCtx.destination);
-  noise.start();
+    // Colisão bala
+    bullets.forEach((b, bi) => {
+      if (
+        b.x < e.x + e.size &&
+        b.x + 6 > e.x &&
+        b.y < e.y + e.size &&
+        b.y + 10 > e.y
+      ) {
+        enemies.splice(i, 1);
+        bullets.splice(bi, 1);
+        score += 2;
+      }
+    });
+
+    if (e.y > canvas.height) {
+      enemies.splice(i, 1);
+      score++;
+    }
+  });
+
+  // Power-up
+  ctx.fillStyle = "#ff0";
+  powerUps.forEach((p, i) => {
+    p.y += 2;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+
+    if (
+      p.x < player.x + player.size &&
+      p.x + p.size > player.x &&
+      p.y < player.y + player.size &&
+      p.y + p.size > player.y
+    ) {
+      score += 10;
+      powerUps.splice(i, 1);
+    }
+  });
+
+  document.getElementById("score").innerText = score;
+  difficulty = 1 + score / 20;
+
+  requestAnimationFrame(update);
 }
 
-/* VIBRAÇÃO CONTÍNUA */
-let vibra;
-function startVibe(){
-  if(!navigator.vibrate) return;
-  vibra = setInterval(()=>{
-    navigator.vibrate([300,100]);
-  },400);
-}
+// Spawns
+setInterval(spawnEnemy, 900);
+setInterval(spawnPowerUp, 8000);
 
-/* ERRO CRÍTICO */
-function critical(){
-  t.textContent += "\nERRO CRÍTICO DO SISTEMA\nFALHA DE MEMÓRIA\nINTERRUPÇÃO INT6\n";
-  document.body.classList.add("int6","shake");
-}
-
-/* INICIAR COM TOQUE */
-window.addEventListener("click",()=>{
-  startNoise();
-  startVibe();
-},{once:true});
-
-/* FINAL */
-setTimeout(()=>{
-  clearInterval(logInterval);
-  critical();
-},6000);
+update();
 </script>
+
 </body>
 </html>
