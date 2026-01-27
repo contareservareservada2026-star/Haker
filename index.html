@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Processando...</title>
+<title>Sistema</title>
 
 <style>
   body {
@@ -11,102 +11,131 @@
     background: #000;
     color: #00ff00;
     font-family: monospace;
-    padding: 12px;
-  }
-  .box {
-    max-width: 420px;
-    margin: auto;
-  }
-  .bar {
-    width: 100%;
-    height: 8px;
-    background: #022;
-    margin: 10px 0;
+    padding: 10px;
     overflow: hidden;
   }
-  .fill {
-    height: 100%;
-    width: 0%;
-    background: #00ff00;
-    transition: width .4s;
+  .line { line-height: 1.2; }
+  .g { color: #00ff00; }
+  .c { color: #00ffff; }
+  .y { color: #ffff00; }
+  .r { color: #ff3333; }
+
+  /* ERRO CRÍTICO */
+  .critical {
+    animation: blink 0.12s infinite;
+    font-size: 18px;
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
   }
-  .small {
-    opacity: .8;
-    font-size: 12px;
+  @keyframes blink {
+    0% { background: #000; color: #ff3333; }
+    50% { background: #ff3333; color: #000; }
+    100% { background: #000; color: #ff3333; }
   }
 </style>
 </head>
 
 <body>
-<div class="box">
-  <div id="log"></div>
-  <div class="bar"><div class="fill" id="fill"></div></div>
-  <div class="small" id="pct">0%</div>
-</div>
+<div id="log"></div>
 
 <script>
-/* TEXTO */
+/* ===== TEXTO FAKE ===== */
 const lines = [
-  "Conectando ao servidor...",
-  "Handshake estabelecido",
-  "Sessão remota ativa",
-  "Identificadores encontrados:",
-  "→ Guilherme Monteiro dos Santos",
-  "→ Eusana Monteiro",
-  "Validando chave privada...",
-  "Código: +55 77 8810-1527",
-  "Sincronizando dados...",
-  "Interceptando pacotes...",
-  "Decodificando mensagens...",
-  "Processo em execução..."
+  "<span class='c'>Inicializando sessão remota...</span>",
+  "<span class='g'>Handshake OK | Protocolo seguro</span>",
+  "<span class='y'>IP detectado: 177.45.9.201</span>",
+  "<span class='g'>Roteamento de pacotes ativo</span>",
+  "<span class='c'>Buscando CPF...</span>",
+  "<span class='y'>Número vinculado: +55 77 8810-1527</span>",
+  "<span class='g'>Nome localizado: Guilherme Monteiro dos Santos</span>",
+  "<span class='c'>Endereço parcial: Malhada de Pedras - Bahia</span>",
+  "<span class='y'>Naturalidade confirmada</span>",
+  "<span class='g'>Escolaridade: Ensino Médio</span>",
+  "<span class='c'>Buscando CEP...</span>",
+  "<span class='y'>Conta Caixa Tem sincronizada</span>",
+  "<span class='g'>E-mail indexado</span>",
+  "<span class='c'>Senhas criptografadas (hash)</span>",
+  "<span class='y'>Dump de memória em progresso</span>",
+  "<span class='g'>Malha de dados estabilizada</span>",
+  "<span class='c'>Leitura contínua ativa</span>"
 ];
 
-let i = 0, p = 0;
 const log = document.getElementById("log");
-const fill = document.getElementById("fill");
-const pct = document.getElementById("pct");
+let running = true;
 
-const timer = setInterval(() => {
-  if (i < lines.length) {
-    log.innerHTML += lines[i] + "<br>";
-    i++;
+/* Preenche a tela continuamente */
+function addLines() {
+  if (!running) return;
+  for (let i = 0; i < 3; i++) {
+    const l = lines[Math.floor(Math.random() * lines.length)];
+    log.innerHTML += "<div class='line'>" + l + "</div>";
   }
-  p += 10;
-  if (p > 100) p = 100;
-  fill.style.width = p + "%";
-  pct.textContent = p + "%";
-}, 450);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+const textLoop = setInterval(addLines, 260);
 
-/* SOM DE CHIADO (PC TRAVANDO) */
+/* ===== SOM DE CHIADO (CONTÍNUO E ALTO) ===== */
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
+let noiseSrc;
 
-function ruido() {
-  const bufferSize = audioCtx.sampleRate * 1.5;
+function startNoise() {
+  const bufferSize = audioCtx.sampleRate * 2;
   const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
   const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
+  noiseSrc = audioCtx.createBufferSource();
+  noiseSrc.buffer = buffer;
+  noiseSrc.loop = true;
 
   const gain = audioCtx.createGain();
-  gain.gain.value = 0.08;
+  gain.gain.value = 0.9; // 🔊 bem alto
 
-  source.connect(gain);
+  noiseSrc.connect(gain);
   gain.connect(audioCtx.destination);
-  source.start();
+  noiseSrc.start();
 }
 
-/* Inicia som ao abrir */
+/* ===== VIBRAÇÃO CONTÍNUA ===== */
+let vibraLoop;
+function startVibration() {
+  if (!("vibrate" in navigator)) return;
+  vibraLoop = setInterval(() => {
+    navigator.vibrate([250, 100]); // vibra/pausa em loop
+  }, 350);
+}
+function intensifyVibration() {
+  if (!("vibrate" in navigator)) return;
+  clearInterval(vibraLoop);
+  vibraLoop = setInterval(() => {
+    navigator.vibrate([500, 150, 500]); // mais forte no erro
+  }, 700);
+}
+
+/* ===== ERRO CRÍTICO FINAL ===== */
+setTimeout(() => {
+  running = false;
+  clearInterval(textLoop);
+  intensifyVibration();
+
+  log.innerHTML += `
+    <div class="critical">
+      ⚠ ERRO CRÍTICO DO SISTEMA ⚠<br><br>
+      MEMORY_DUMP_FAILURE<br>
+      BUFFER_OVERFLOW_EXCEPTION<br>
+      SYSTEM HALTED
+    </div>
+  `;
+}, 9000);
+
+/* ===== INICIAR (PRECISA TOQUE) ===== */
 window.addEventListener("click", () => {
   if (audioCtx.state !== "running") audioCtx.resume();
-  ruido();
+  startNoise();
+  startVibration();
 }, { once: true });
-
 </script>
 </body>
 </html>
