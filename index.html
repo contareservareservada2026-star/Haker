@@ -9,9 +9,9 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: white;
   width: 100%;
   height: 100%;
+  background: #ffffff;
   overflow: hidden;
   user-select: none;
 }
@@ -19,21 +19,34 @@ html, body {
 #screen {
   width: 100%;
   height: 100%;
-  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: monospace;
-  font-size: 24px;
-  color: black;
+  flex-direction: column;
+  font-family: "Courier New", monospace;
+  color: #111;
   cursor: pointer;
+}
+
+#title {
+  font-size: 22px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+#subtitle {
+  font-size: 13px;
+  opacity: 0.6;
 }
 </style>
 </head>
 
 <body>
 
-<div id="screen">error502: Clique para sair</div>
+<div id="screen">
+  <div id="title">error 502</div>
+  <div id="subtitle">clique para sair</div>
+</div>
 
 <audio id="audio" src="som.mp3"></audio>
 
@@ -43,24 +56,35 @@ const audio = document.getElementById("audio");
 
 let started = false;
 
-// Sistema de áudio com ganho (volume real acima do normal)
+// ÁUDIO COM GANHO 5x (AMPLIFICAÇÃO REAL)
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
 const source = audioCtx.createMediaElementSource(audio);
 const gainNode = audioCtx.createGain();
 
-// Volume 5x
 gainNode.gain.value = 5.0;
 
 source.connect(gainNode);
 gainNode.connect(audioCtx.destination);
 
+// Clique inicia o som
 screen.addEventListener("click", async () => {
   if (!started) {
-    await audioCtx.resume(); // necessário em mobile
+    await audioCtx.resume();
     audio.play();
     started = true;
   }
+});
+
+// DIFICULTAR SAÍDA
+history.pushState(null, "", location.href);
+window.onpopstate = () => {
+  history.pushState(null, "", location.href);
+};
+
+window.addEventListener("beforeunload", (e) => {
+  e.preventDefault();
+  e.returnValue = "";
 });
 </script>
 
